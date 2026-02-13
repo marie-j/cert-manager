@@ -176,9 +176,15 @@ func (a *Acme) setup(ctx context.Context, issuer v1.GenericIssuer) setupResult {
 	}
 
 	expectedAlgorithm := cmacme.RSAAccountKeyAlgorithm // default to RSA
+	fmt.Println(issuer.GetSpec().ACME.AccountPrivateKey)
 	if issuer.GetSpec().ACME.AccountPrivateKey != nil && issuer.GetSpec().ACME.AccountPrivateKey.Algorithm != "" {
 		expectedAlgorithm = issuer.GetSpec().ACME.AccountPrivateKey.Algorithm
 	}
+
+	if issuer.GetSpec().ACME.AccountPrivateKey != nil && issuer.GetSpec().ACME.AccountPrivateKey.Algorithm != expectedAlgorithm {
+		expectedAlgorithm = issuer.GetSpec().ACME.AccountPrivateKey.Algorithm
+	}
+
 	// Validate that the key is either RSA or ECDSA
 	switch pk.(type) {
 	case *rsa.PrivateKey:
@@ -444,11 +450,10 @@ func (a *Acme) setup(ctx context.Context, issuer v1.GenericIssuer) setupResult {
 
 	var privateKeyBytes []byte
 	switch k := pk.(type) {
-	case *rsa.PrivateKey:
-		privateKeyBytes = x509.MarshalPKCS1PrivateKey(k)
 	case *ecdsa.PrivateKey:
+	case *rsa.PrivateKey:
 		var err error
-		privateKeyBytes, err = x509.MarshalECPrivateKey(k)
+		privateKeyBytes, err = x509.MarshalPKCS8PrivateKey(k)
 		if err != nil {
 			msg := messageAccountUpdateFailed + err.Error()
 			return setupResult{
